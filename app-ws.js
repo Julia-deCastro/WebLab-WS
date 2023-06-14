@@ -15,9 +15,13 @@ function onMessage(ws, data) {
     host = parsedData.host;
     port = parsedData.port;
     connect = true;
+    startWebSocketConnection(ws);
+  } else if (connect) {
+    handleWebSocketMessage(ws, parsedData);
   }
+}
 
-if (connect) {
+function startWebSocketConnection(ws) {
   const wsc = new WebSocket(`ws://${host}:${port}`);
 
   wsc.on('message', function message(data) {
@@ -26,32 +30,43 @@ if (connect) {
   });
 
   wsc.on('error', console.error);
-    console.log(parsedData.c)
-  if (parsedData.c === "env") {
-  wsc.on('open', function open() {
-    wsc.send(JSON.stringify({
-      "c": 1
-    }));
-  });
-}
 
-if (parsedData.c === "stp") {
-    wsc.on('open', function open() {
-      wsc.send(JSON.stringify({
-        "c": 0
-      }));
-    });
-  }
+  ws.on('message', function message(data) {
+    wsc.send(data);
+  });
+
+  wsc.on('open', function open() {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ c: 1 }));
+    }
+  });
 
   wsc.on('close', function close() {
     console.log('connection closed');
   });
-
-  // Mantenha a troca de mensagens com o novo servidor em loop
-  ws.on('message', function message(data) {
-    wsc.send(data);
-  });
 }
+
+function handleWebSocketMessage(ws, parsedData) {
+  const wsc = new WebSocket(`ws://${host}:${port}`);
+
+  wsc.on('error', console.error);
+
+  wsc.on('open', function open() {
+    if (parsedData.c === "env") {
+      wsc.send(JSON.stringify({ c: 1 }));
+    } else if (parsedData.c === "stp") {
+      wsc.send(JSON.stringify({ c: 0 }));
+    }
+  });
+
+  wsc.on('message', function message(data) {
+    console.log('received from wsc: %s', data);
+    ws.send(data.toString());
+  });
+
+  wsc.on('close', function close() {
+    console.log('connection closed');
+  });
 }
 
 function onConnection(ws, req) {
